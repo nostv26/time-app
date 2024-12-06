@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "874519737094",
+    "project_id": "timer-5eafa",
+    "storage_bucket": "timer-5eafa.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:874519737094:android:65aaed1c9015eca9e9a487",
+        "android_client_info": {
+          "package_name": "com.mycompany.timerapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "874519737094-r0i39t4o1qc60onfttf1o6ubi2dj25l8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1tP7riGFK1aX53dyRrfrD9AM0fADNpgw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "874519737094-r0i39t4o1qc60onfttf1o6ubi2dj25l8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "874519737094-9dl2lu52b4lme6d2j9jld90dc1td33s2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mycompany.timerapp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:874519737094:android:170c08351abe5933e9a487",
+        "android_client_info": {
+          "package_name": "com.mytimer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "874519737094-r0i39t4o1qc60onfttf1o6ubi2dj25l8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA1tP7riGFK1aX53dyRrfrD9AM0fADNpgw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "874519737094-r0i39t4o1qc60onfttf1o6ubi2dj25l8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "874519737094-9dl2lu52b4lme6d2j9jld90dc1td33s2.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mycompany.timerapp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
