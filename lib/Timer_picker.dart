@@ -3,13 +3,42 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:my_app_time/List_time.dart';
-import 'package:my_app_time/Main_screen.dart';
+import 'package:my_app_time/Time_screen.dart';
 import 'package:my_app_time/header.dart';
-import 'package:my_app_time/main.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+Future<String> saveTimerToFirestore(
+    int hour, int minute, int second, String voice, String description) async {
+  try {
+    // Tham chiếu đến bộ sưu tập "timers"
+    CollectionReference timersCollection =
+        FirebaseFirestore.instance.collection('timers');
+    if (description.isEmpty) {
+      description =
+          "${hour.toString().padLeft(2, '0')} 時, ${minute.toString().padLeft(2, '0')} 分, ${second.toString().padLeft(2, '0')} 秒";
+    }
+    // Thêm tài liệu mới và lấy DocumentReference
+    DocumentReference docRef = await timersCollection.add({
+      "hour": hour,
+      "minute": minute,
+      "second": second,
+      "description": description,
+      "voice": voice,
+      "createdAt": FieldValue.serverTimestamp(),
+    });
+
+    String documentId = docRef.id; // Lấy ID của tài liệu mới
+    print("Dữ liệu đã được lưu lên Firestore với ID: $documentId");
+    return documentId; // Trả về ID
+  } catch (e) {
+    print("Lỗi khi lưu dữ liệu: $e");
+    throw e; // Ném lỗi để xử lý phía trên nếu cần
+  }
+}
 
 class TimePickerScreen extends StatefulWidget {
   @override
-  State<TimePickerScreen> createState() => _TimePickerScreenState();
+  _TimePickerScreenState createState() => _TimePickerScreenState();
 }
 
 class _TimePickerScreenState extends State<TimePickerScreen> {
@@ -17,429 +46,420 @@ class _TimePickerScreenState extends State<TimePickerScreen> {
   int selectedMinute = 0;
   int selectedSecond = 0;
   bool isSwitched = false;
-
+  String SelectVoice = "Eris";
   int _remainingTime = 0;
   String memo = "";
   Timer? _timer;
+  Timestamp? time;
   bool _isStarted = false;
 
-  void _startTimer() {
-    if (_timer != null) {
-      _timer!.cancel();
-    }
-
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
-      setState(() {
-        if (_remainingTime > 0) {
-          _remainingTime--;
-        } else {
-          _timer!.cancel();
-          _playAlarm();
-        }
-      });
-    });
-  }
-
-  void _stopTimer() {
-    if (_timer != null) {
-      _timer!.cancel();
-    }
-  }
-
-  void _toggleTimer() {
-    setState(() {
-      _isStarted = !_isStarted; // Đổi trạng thái giữa Start và Stop
-    });
-
-    if (_isStarted) {
-      _startTimer();
-    } else {
-      _stopTimer();
-    }
-  }
-
-  void _playAlarm() {
-    print("Alarm! Time's up!");
-  }
-
-  void _backSettingTime() {
-    print("quay lai time list");
-  }
-
-  // Tạo một TextEditingController để quản lý giá trị nhập
-  final TextEditingController _controller = TextEditingController();
+  // Tạo danh sách timers để hiển thị "最近の項目"
+  List<Map<String, dynamic>> timers = [];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: Header(text: "Setting Time"),
-      body: Column(
-        children: [
-          SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft, // Đặt Text ở bên trái màn hình
-            child: Text(
+      appBar: Header(text: "Time"),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Tiêu đề "Time Picker"
+            Text(
               'Time Picker',
               style: TextStyle(fontSize: 30, fontWeight: FontWeight.w600),
             ),
-          ),
-          SizedBox(height: 30),
-          Container(
-            child: Row(
+            SizedBox(height: 20),
+
+            // Picker chọn giờ, phút, giây
+            Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Picker chọn giờ
-                SizedBox(
-                  height: 150, // Chiều cao toàn bộ picker
-                  width: 100,
-                  child: CupertinoPicker(
-                    itemExtent: 30, // Chiều cao của mỗi phần tử
-                    onSelectedItemChanged: (value) {
-                      setState(() {
-                        selectedHour = value;
-                      });
-                    },
-                    children: List.generate(24, (index) {
-                      return Center(
-                        child: Text(
-                          "$index 時",
-                          style: TextStyle(fontSize: 20),
-                        ),
-                      );
-                    }),
-                  ),
-                ),
-                // Picker chọn phút
-                SizedBox(
-                  height: 150, // Chiều cao toàn bộ picker
-                  width: 100,
-                  child: CupertinoPicker(
-                    itemExtent: 30,
-                    onSelectedItemChanged: (value) {
-                      setState(() {
-                        selectedMinute = value;
-                      });
-                    },
-                    children: List.generate(60, (index) {
-                      return Center(
-                        child: Text(
-                          "$index 分",
-                          style: TextStyle(fontSize: 20),
-                        ),
-                      );
-                    }),
-                  ),
-                ),
-                // Picker chọn giây
-                SizedBox(
-                  height: 150, // Chiều cao toàn bộ picker
-                  width: 100,
-                  child: CupertinoPicker(
-                    itemExtent: 30,
-                    onSelectedItemChanged: (value) {
-                      setState(() {
-                        selectedSecond = value;
-                      });
-                    },
-                    children: List.generate(60, (index) {
-                      return Center(
-                        child: Text(
-                          "$index 秒",
-                          style: TextStyle(fontSize: 20),
-                        ),
-                      );
-                    }),
-                  ),
-                ),
+                buildCupertinoPicker("時", 24, (value) {
+                  setState(() {
+                    selectedHour = value;
+                  });
+                }),
+                buildCupertinoPicker("分", 60, (value) {
+                  setState(() {
+                    selectedMinute = value;
+                  });
+                }),
+                buildCupertinoPicker("秒", 60, (value) {
+                  setState(() {
+                    selectedSecond = value;
+                  });
+                }),
               ],
             ),
-          ),
-          SizedBox(height: 40),
-          Row(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceEvenly, // Căn đều các nút và text
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Nút "キャンセル"
-              ElevatedButton(
-                onPressed: _backSettingTime,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 200, 200, 200),
-                  padding: EdgeInsets.all(30), // Padding nhỏ hơn để cân đối hơn
-                  shape: CircleBorder(), // Đặt nút tròn
-                  minimumSize:
-                      Size(90, 90), // Kích thước cố định để nút luôn tròn
-                ),
-                child: Text(
-                  "キャンセル",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+            SizedBox(height: 20),
 
-              // Hiển thị thời gian
-              Container(
-                width: 150, // Kích thước cố định để tránh bị giãn
-                height: 40, // Đặt chiều cao hợp lý
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  "${selectedHour.toString().padLeft(2, '0')} 時, ${selectedMinute.toString().padLeft(2, '0')} 分, ${selectedSecond.toString().padLeft(2, '0')} 秒",
-                  style: TextStyle(
-                      fontSize: 16, color: Colors.black54), // Font size hợp lý
-                  textAlign: TextAlign.center,
-                ),
-              ),
-
-              // Nút "スタート"
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 231, 247, 90),
-                  padding: EdgeInsets.all(30), // Padding nhỏ hơn để cân đối hơn
-                  shape: CircleBorder(), // Đặt nút tròn
-                  minimumSize:
-                      Size(90, 90), // Kích thước cố định để nút luôn tròn
-                ),
-                onPressed: () {
-                  // Hiển thị SubScreen
-                  final mainState =
-                      context.findAncestorStateOfType<_TimePickerScreenState>();
-                  if (mainState != null) {
-                    mainState.setState(() {
-                      // mainState._isSubScreenVisible = true;
-                    });
-                  }
-                  print(
-                      "Bắt đầu: $selectedHour giờ, $selectedMinute phút, $selectedSecond giây");
-                },
-                child: Text(
-                  "Bắt đầu",
-                  style: TextStyle(fontSize: 20, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-
-          // Container(
-          //   width: double.infinity,
-          //   height: 30,
-          //   // padding: EdgeInsets.all(10),
-          //   decoration: BoxDecoration(
-          //     color: Colors.grey[300],
-          //     borderRadius: BorderRadius.circular(10),
-          //   ),
-          //   alignment: Alignment.center,
-          //   child: Text(
-          //     "${selectedHour.toString().padLeft(2, '0')} 時, ${selectedMinute.toString().padLeft(2, '0')} 分, ${selectedSecond.toString().padLeft(2, '0')} 秒",
-          //     style: TextStyle(fontSize: 18, color: Colors.black54),
-          //   ),
-          // ),
-          SizedBox(height: 40),
-          //khung select memo va ngon ngu noi
-          Container(
-            width: double.infinity,
-            margin: EdgeInsets.symmetric(horizontal: 30),
-            padding: EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            // Nút và Text hiển thị thời gian đã chọn
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Hàng 1: Memo và Text
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'メモ',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Expanded(
-                        child: TextField(
-                          controller: _controller, // Gắn TextEditingController
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
-                          textAlign: TextAlign.end,
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-
-                            hintText: 'タイマー', // Gợi ý văn bản
-                          ),
-                          onChanged: (value) {
-                            print("Nội dung: $value"); // In ra giá trị nhập
-                          },
-                        ),
-                      ),
-                    ],
+                buildCircleButton("キャンセル", Colors.grey, () {
+                  print("キャンセル clicked");
+                }),
+                Container(
+                  width: 150,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    "${selectedHour.toString().padLeft(2, '0')} 時, ${selectedMinute.toString().padLeft(2, '0')} 分, ${selectedSecond.toString().padLeft(2, '0')} 秒",
+                    style: TextStyle(fontSize: 16, color: Colors.black54),
                   ),
                 ),
-                Divider(color: Colors.black),
-
-                // Hàng 2: 音声再生 và các ô màu
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '音声再生',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Switch(
-                        value: isSwitched, // Biến trạng thái tắt/mở
-                        onChanged: (value) {
-                          setState(() {
-                            isSwitched = value; // Cập nhật trạng thái
-                          });
-                        },
-                        activeColor: Colors.brown, // Màu khi bật
-                        inactiveThumbColor: Colors.black, // Màu khi tắt
-                        inactiveTrackColor: Colors.grey, // Màu nền khi tắt
-                      ),
-                    ],
-                  ),
-                ),
-                Divider(color: Colors.black),
-                // Hàng 3: 繰り返し và なし
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 9.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '繰り返し',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'あり',
-                        style: TextStyle(fontSize: 18),
-                      ),
-                    ],
-                  ),
-                ),
-                Divider(color: Colors.black),
+                buildCircleButton("スタート", Colors.green, () async {
+                  // Lưu dữ liệu vào Firestore
+                  String documentId = await saveTimerToFirestore(selectedHour,
+                      selectedMinute, selectedMinute, SelectVoice, memo);
+                  // addTimer(formattedTime, "タイマーを設定しました");
+                  print('Document ID: $documentId');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          ListTime(documentId: documentId, isStarted: true),
+                    ),
+                  );
+                  print(
+                      "Bắt đầu: $selectedHour 時, $selectedMinute 分, $selectedSecond 秒");
+                }),
               ],
             ),
-          ),
-          SizedBox(height: 30),
-          Align(
-            alignment: Alignment.centerLeft, // Đặt Text ở bên trái màn hình
-            child: Text(
+            SizedBox(height: 30),
+            buildSettingsContainer(),
+            SizedBox(height: 20),
+
+            // Nút thời gian đặt trước
+            Text(
               '先に予約',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
-          ),
-          SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton(
-                onPressed: () {
+            SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                buildPresetButton("1m", () {
                   setState(() {
                     selectedMinute = 1;
                     selectedHour = 0;
                     selectedSecond = 0;
                   });
-                  print("1m clicked");
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[300],
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                ),
-                child: Text('1m'),
-              ),
-              // ElevatedButton(
-              //   onPressed: () {
-              //     setState(() {
-              //       selectedMinute = 1;
-              //       selectedHour = 0;
-              //       selectedSecond = 0;
-              //     });
-              //     print("2m clicked");
-              //   },
-              //   style: ElevatedButton.styleFrom(
-              //     backgroundColor: Colors.grey[300],
-              //     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              //   ),
-              //   child: Text('2m'),
-              // ),
-              // ElevatedButton(
-              //   onPressed: () {
-              //     setState(() {
-              //       selectedMinute = 1;
-              //       selectedHour = 0;
-              //       selectedSecond = 0;
-              //     });
-              //     print("3m clicked");
-              //   },
-              //   style: ElevatedButton.styleFrom(
-              //     backgroundColor: Colors.grey[300],
-              //     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              //   ),
-              //   child: Text('3m'),
-              // ),
-              // ElevatedButton(
-              //   onPressed: () {
-              //     setState(() {
-              //       selectedMinute = 1;
-              //       selectedHour = 0;
-              //       selectedSecond = 0;
-              //     });
-              //     print("4m clicked");
-              //   },
-              //   style: ElevatedButton.styleFrom(
-              //     backgroundColor: Colors.grey[300],
-              //     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              //   ),
-              //   child: Text('4m'),
-              // ),
-              ElevatedButton(
-                onPressed: () {
+                }),
+                buildPresetButton("5m", () {
                   setState(() {
                     selectedMinute = 5;
                     selectedHour = 0;
                     selectedSecond = 0;
                   });
-                  print("5m clicked");
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[300],
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                ),
-                child: Text('5m'),
-              ),
-              ElevatedButton(
-                onPressed: () {
+                }),
+                buildPresetButton("10m", () {
                   setState(() {
                     selectedMinute = 10;
                     selectedHour = 0;
                     selectedSecond = 0;
                   });
-                  print("10m clicked");
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[300],
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                }),
+              ],
+            ),
+            SizedBox(height: 20),
+
+            // Danh sách "最近の項目"
+            Text(
+              '最近の項目',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+            ),
+
+            Divider(),
+            SizedBox(height: 10),
+            ...timers.map((timer) {
+              String hour = (timer["hour"] ?? "0").toString();
+              String minute =
+                  ((timer["minute"] ?? 0) as int).toString().padLeft(2, '0');
+              String second =
+                  ((timer["second"] ?? 0) as int).toString().padLeft(2, '0');
+              String description = timer["description"] ?? "No description";
+              String docID = timer["id"];
+
+              return buildTimerListItem(
+                  hour, minute, second, description, docID);
+            }).toList(),
+            // ListView(
+            //   shrinkWrap: true,
+            //   prototypeItem: buildTimerListItem(),
+            // ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void addTimer(String time, String description) {
+    setState(() {
+      timers.insert(0, {"time": time, "description": description});
+    });
+  }
+
+  // Widget helper: Cupertino Picker
+  Widget buildCupertinoPicker(
+      String label, int count, ValueChanged<int> onChange) {
+    return SizedBox(
+      height: 150,
+      width: 100,
+      child: CupertinoPicker(
+        itemExtent: 30,
+        onSelectedItemChanged: onChange,
+        children: List.generate(count, (index) {
+          return Center(
+            child: Text(
+              "$index $label",
+              style: TextStyle(fontSize: 20),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // Widget helper: Circle Button
+  Widget buildCircleButton(String label, Color color, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        padding: EdgeInsets.all(30),
+        shape: CircleBorder(),
+        minimumSize: Size(90, 90),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget buildSettingsContainer() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          buildSettingsRow(
+            'メモ',
+            Expanded(
+              child: TextField(
+                controller: TextEditingController(text: memo),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.end,
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  hintText: 'Text',
                 ),
-                child: Text('10m'),
+                onChanged: (value) {
+                  if (value.isNotEmpty) {
+                    memo = value; // Lưu giá trị memo mới
+                    print("Nội dung: $memo");
+                  }
+                },
+              ),
+            ),
+          ),
+          Divider(color: Colors.black),
+          buildSettingsRow(
+            '音声再生',
+            Switch(
+              value: isSwitched,
+              onChanged: (value) {
+                setState(() {
+                  isSwitched = value;
+                });
+              },
+              activeColor: Colors.brown,
+              inactiveThumbColor: Colors.black,
+            ),
+          ),
+          if (isSwitched)
+            GestureDetector(
+              onTap: () {
+                // Hiển thị modal
+                showModalBottomSheet(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return Container(
+                      padding: EdgeInsets.all(10),
+                      height: 250,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            "音声声優を選択",
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                          Divider(color: Colors.grey),
+                          ...['Anna', 'Eris', 'John'].map((voice) => ListTile(
+                                title: Text(voice),
+                                onTap: () {
+                                  setState(() {
+                                    SelectVoice = voice; // Cập nhật trực tiếp
+                                    print(voice);
+                                  });
+                                  Navigator.pop(context); // Đóng modal
+                                },
+                              )),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+              child: Text(
+                textAlign: TextAlign.end,
+                SelectVoice,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+          Divider(color: Colors.black),
+          buildSettingsRow('繰り返し', Text('あり', style: TextStyle(fontSize: 18))),
+          Divider(color: Colors.black),
+        ],
+      ),
+    );
+  }
+
+  // Widget helper: Settings Row
+  Widget buildSettingsRow(String label, Widget trailing) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          trailing,
+        ],
+      ),
+    );
+  }
+
+  //get data from database
+  Future<void> fetchRecentData() async {
+    final db = FirebaseFirestore.instance.collection('timers');
+    try {
+      // Lấy 6 tài liệu gần đây, sắp xếp theo `timestamp`2
+      QuerySnapshot querySnapshot = await db
+          .orderBy('createdAt', descending: true) // Sắp xếp giảm dần
+          .limit(6) // Lấy tối đa 6 tài liệu
+          .get();
+      if (querySnapshot.docs.isNotEmpty) {
+        List<Map<String, dynamic>> recentData = [];
+
+        for (var doc in querySnapshot.docs) {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          recentData.add(data); // Thêm dữ liệu vào danh sách
+        }
+        setState(() {
+          timers = recentData;
+        });
+      } else {
+        print("Không có tài liệu nào trong collection 'timers'");
+      }
+    } catch (e) {
+      print("Lỗi khi lấy dữ liệu: $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    fetchRecentData();
+  }
+
+  // Widget helper: Timer List Item
+  Widget buildTimerListItem(String hour, String minute, String second,
+      String description, String docID) {
+    return InkWell(
+      // padding: EdgeInsets.symmetric(vertical: 8.0),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ListTime(
+                documentId: docID,
+                isStarted: true), // Thay thế bằng màn hình của bạn
+          ),
+        );
+      },
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$hour:$minute:$second',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                description,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
             ],
           ),
-          SizedBox(height: 20),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              shape: CircleBorder(),
+              backgroundColor: const Color.fromARGB(255, 23, 100, 54),
+              padding: EdgeInsets.all(15),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ListTime(
+                      documentId: docID,
+                      isStarted:
+                          true), // Thay TimeScreen bằng màn hình bạn muốn chuyển tới
+                ),
+              );
+            },
+            child: Icon(Icons.play_arrow,
+                color: const Color.fromARGB(255, 74, 227, 130)),
+          ),
+          // SizedBox(height: 10),
         ],
       ),
+    );
+  }
+
+  // Widget helper: Preset Button
+  Widget buildPresetButton(String label, VoidCallback onPressed) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.grey[300],
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      ),
+      child: Text(label),
     );
   }
 }

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:my_app_time/List_time.dart';
 import 'package:my_app_time/Timer_picker.dart';
+import 'package:my_app_time/basepage.dart';
 import 'package:my_app_time/header.dart';
+import 'package:my_app_time/test1.dart';
 // import 'List_time.dart';
-import 'Main_screen.dart';
+import 'Time_screen.dart';
 import 'time_fix.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart'; // Tệp cấu hình Firebase của bạn
@@ -26,9 +28,9 @@ class MyApp extends StatelessWidget {
         child: Scaffold(
           body: TabBarView(
             children: [
-              Main_Screen(),
+              Basepage(),
+              RecentTimersScreen(),
               AlarmTimerScreen(),
-              TimePickerScreen(),
             ], //hẹn giờ  ,bấm giờ và báo thức
           ),
           // ignore: prefer_const_constructors

@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:my_app_time/List_time.dart';
+import 'package:my_app_time/Timer_picker.dart';
 import 'package:my_app_time/header.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 
-class Main_Screen extends StatefulWidget {
+class Time_Screen extends StatefulWidget {
   @override
   _MainScreenState createState() => _MainScreenState();
+
+  final String documentId;
+  final bool isStarted;
+  final int amount;
+  Time_Screen(
+      {required this.documentId,
+      required this.isStarted,
+      required this.amount});
 }
 
-class _MainScreenState extends State<Main_Screen> {
+class _MainScreenState extends State<Time_Screen> {
   int _remainingTime = 0;
   String memo = "";
   Timer? _timer;
@@ -142,7 +152,14 @@ class _MainScreenState extends State<Main_Screen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 ElevatedButton(
-                  onPressed: _backSettingTime,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TimePickerScreen(),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromARGB(255, 200, 200, 200),
                     padding: EdgeInsets.all(35), // Đặt padding đều để nút tròn
